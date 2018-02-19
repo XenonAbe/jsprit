@@ -51,6 +51,8 @@ public class UpdateMaxTimeInVehicle implements StateUpdater, ActivityVisitor{
 
     private Location[] prevActLocations;
 
+    private TourActivity prevAct = null;
+
     private Collection<Vehicle> vehicles;
 
     private final TransportTime transportTime;
@@ -90,6 +92,7 @@ public class UpdateMaxTimeInVehicle implements StateUpdater, ActivityVisitor{
         actStartTimesPerVehicle.clear();
         vehicles = vehiclesToUpdate.get(route);
         this.route = route;
+        prevAct = route.getStart();
         for(Vehicle v : vehicles){
             int vehicleIndex = v.getVehicleTypeIdentifier().getIndex();
             openPickupEndTimesPerVehicle.put(vehicleIndex, new HashMap<Job, Double>());
@@ -111,7 +114,7 @@ public class UpdateMaxTimeInVehicle implements StateUpdater, ActivityVisitor{
             double activityArrival = prevActEndTimes[v.getVehicleTypeIdentifier().getIndex()] + transportTime.getTransportTime(prevActLocation,activity.getLocation(),prevActEndTime,route.getDriver(),v);
             double activityStart = Math.max(activityArrival,activity.getTheoreticalEarliestOperationStartTime());
             memorizeActStart(activity,v,activityStart);
-            double activityEnd = activityStart + activityCosts.getActivityDuration(activity, activityArrival, route.getDriver(), v);
+            double activityEnd = activityStart + activityCosts.getActivityDuration(activity, activityArrival, route.getDriver(), v, prevAct);
             Map<Job, Double> openPickups = openPickupEndTimesPerVehicle.get(vehicleIndex);
             if (activity instanceof ServiceActivity || activity instanceof PickupActivity) {
                 openPickups.put(((TourActivity.JobActivity) activity).getJob(), activityEnd);
@@ -129,6 +132,7 @@ public class UpdateMaxTimeInVehicle implements StateUpdater, ActivityVisitor{
             prevActEndTimes[vehicleIndex] = activityEnd;
         }
 
+        prevAct = activity;
     }
 
     private double getMaxTimeInVehicle(TourActivity activity) {
@@ -228,6 +232,7 @@ public class UpdateMaxTimeInVehicle implements StateUpdater, ActivityVisitor{
                 }
             }
         }
+        prevAct = null;
     }
 
     private double actStart(TourActivity act, Vehicle v) {

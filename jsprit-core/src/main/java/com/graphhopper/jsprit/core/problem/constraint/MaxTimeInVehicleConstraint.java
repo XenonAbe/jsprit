@@ -72,7 +72,7 @@ public class MaxTimeInVehicleConstraint implements HardActivityConstraint {
         //************ 1. check whether insertion of new shipment satisfies own max-in-vehicle-constraint
         double newActArrival = prevActDepTime + transportTime.getTransportTime(prevAct.getLocation(),newAct.getLocation(),prevActDepTime,iFacts.getNewDriver(),iFacts.getNewVehicle());
         double newActStart = Math.max(newActArrival, newAct.getTheoreticalEarliestOperationStartTime());
-        double newActDeparture = newActStart + activityCosts.getActivityDuration(newAct, newActArrival, iFacts.getNewDriver(), iFacts.getNewVehicle());
+        double newActDeparture = newActStart + activityCosts.getActivityDuration(newAct, newActArrival, iFacts.getNewDriver(), iFacts.getNewVehicle(), prevAct);
         double nextActArrival = newActDeparture + transportTime.getTransportTime(newAct.getLocation(),nextAct.getLocation(),newActDeparture,iFacts.getNewDriver(),iFacts.getNewVehicle());
         double nextActStart = Math.max(nextActArrival,nextAct.getTheoreticalEarliestOperationStartTime());
         if(newAct instanceof DeliveryActivity){
@@ -92,7 +92,7 @@ public class MaxTimeInVehicleConstraint implements HardActivityConstraint {
             if(iFacts.getAssociatedActivities().size() == 1){
                 double maxTimeInVehicle = ((TourActivity.JobActivity)newAct).getJob().getMaxTimeInVehicle();
                 //ToDo - estimate in vehicle time of pickups here - This seems to trickier than I thought
-                double nextActDeparture = nextActStart + activityCosts.getActivityDuration(nextAct, nextActArrival, iFacts.getNewDriver(), iFacts.getNewVehicle());
+                double nextActDeparture = nextActStart + activityCosts.getActivityDuration(nextAct, nextActArrival, iFacts.getNewDriver(), iFacts.getNewVehicle(),newAct);
 //                if(!nextAct instanceof End)
                 double timeToEnd = 0; //newAct.end + tt(newAct,nextAct) + t@nextAct + t_to_end
                 if(timeToEnd > maxTimeInVehicle) return ConstraintsStatus.NOT_FULFILLED;
@@ -124,16 +124,25 @@ public class MaxTimeInVehicleConstraint implements HardActivityConstraint {
                 if (openJob instanceof Shipment) {
                     Map<Job, Double> openJobsAtNextOfPickup = Collections.emptyMap();
                     TourActivity nextAfterPickup;
-                    if (iFacts.getAssociatedActivities().size() == 1 && !iFacts.getRoute().isEmpty())
+                    TourActivity prevBeforePickup;
+                    if (iFacts.getAssociatedActivities().size() == 1 && !iFacts.getRoute().isEmpty()) {
                         nextAfterPickup = iFacts.getRoute().getActivities().get(0);
-                    else
-                        nextAfterPickup = iFacts.getRoute().getActivities().get(iFacts.getRelatedActivityContext().getInsertionIndex());
+                        prevBeforePickup = iFacts.getRoute().getStart();
+                    } else {
+                        final int insertionIndex = iFacts.getRelatedActivityContext().getInsertionIndex();
+                        nextAfterPickup = iFacts.getRoute().getActivities().get(insertionIndex);
+                        if (insertionIndex <= 0)
+                            prevBeforePickup = iFacts.getRoute().getStart();
+                        else
+                            prevBeforePickup = iFacts.getRoute().getActivities().get(insertionIndex-1);
+
+                    }
                     if (nextAfterPickup != null)
                         openJobsAtNextOfPickup = stateManager.getActivityState(nextAfterPickup, iFacts.getNewVehicle(), openJobsId, Map.class);
                     if (openJobsAtNextOfPickup.containsKey(openJob)) {
                         TourActivity pickupAct = iFacts.getAssociatedActivities().get(0);
                         double pickupActArrTime = iFacts.getRelatedActivityContext().getArrivalTime();
-                        double pickupActEndTime = startOf(pickupAct, pickupActArrTime) + activityCosts.getActivityDuration(pickupAct, pickupActArrTime, iFacts.getNewDriver(), iFacts.getNewVehicle());
+                        double pickupActEndTime = startOf(pickupAct, pickupActArrTime) + activityCosts.getActivityDuration(pickupAct, pickupActArrTime, iFacts.getNewDriver(), iFacts.getNewVehicle(), prevBeforePickup);
                         double nextAfterPickupArr = pickupActEndTime + transportTime.getTransportTime(pickupAct.getLocation(), nextAfterPickup.getLocation(), pickupActArrTime, iFacts.getNewDriver(), iFacts.getNewVehicle());
                         additionalTimeOfNewJob += startOf(nextAfterPickup, nextAfterPickupArr) - startOf(nextAfterPickup, nextAfterPickup.getArrTime());
                     }

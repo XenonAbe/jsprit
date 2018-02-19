@@ -241,6 +241,8 @@ public class SolutionAnalyser {
 
         double prevActDeparture;
 
+        TourActivity prevAct = null;
+
         private SumUpActivityTimes(StateId waiting_time_id, StateId transport_time_id, StateId service_time_id, StateId too_late_id, StateManager stateManager, ActivityTimeTracker.ActivityPolicy activityPolicy, VehicleRoutingActivityCosts activityCosts) {
             this.waiting_time_id = waiting_time_id;
             this.transport_time_id = transport_time_id;
@@ -259,6 +261,7 @@ public class SolutionAnalyser {
             sum_service_time = 0.;
             sum_too_late = 0.;
             prevActDeparture = route.getDepartureTime();
+            prevAct = route.getStart();
         }
 
         @Override
@@ -277,8 +280,9 @@ public class SolutionAnalyser {
             sum_transport_time += transportTime;
             prevActDeparture = activity.getEndTime();
             //service time
-            sum_service_time += activityCosts.getActivityDuration(activity, activity.getArrTime(), route.getDriver(), route.getVehicle());
+            sum_service_time += activityCosts.getActivityDuration(activity, activity.getArrTime(), route.getDriver(), route.getVehicle(), prevAct);
 
+            prevAct = activity;
             stateManager.putActivityState(activity, transport_time_id, sum_transport_time);
 
         }
@@ -291,6 +295,7 @@ public class SolutionAnalyser {
             stateManager.putRouteState(route, waiting_time_id, sum_waiting_time);
             stateManager.putRouteState(route, service_time_id, sum_service_time);
             stateManager.putRouteState(route, too_late_id, sum_too_late);
+            prevAct = null;
         }
     }
 
